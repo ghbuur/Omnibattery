@@ -38,6 +38,7 @@ from .anker import AnkerModbusDriver
 from .sessy import SessyLocalDriver
 from .hoymiles import HoymilesMqttDriver
 from .huawei import HuaweiSolarDriver
+from .zendure_aio import ZendureAioDriver
 
 __all__ = [
     "DELIVERED_AC_POWER_KEY",
@@ -53,4 +54,5 @@ __all__ = [
     "SessyLocalDriver",
     "HoymilesMqttDriver",
     "HuaweiSolarDriver",
+    "ZendureAioDriver",
 ]

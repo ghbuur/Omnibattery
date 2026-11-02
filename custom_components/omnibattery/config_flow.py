@@ -1596,6 +1596,8 @@ class MarstekVenusConfigFlow(LegacyDomainMigrationMixin, ConfigFlow, domain=DOMA
         if user_input is not None:
             brand = user_input["brand"]
             self._current_battery_data = {"brand": brand}
+            if brand == "zendure_aio":
+                return await self.async_step_battery_connection_zendure_aio()
             if brand == "zendure":
                 return await self.async_step_battery_connection_zendure()
             if brand == "esphome":
@@ -1619,6 +1621,7 @@ class MarstekVenusConfigFlow(LegacyDomainMigrationMixin, ConfigFlow, domain=DOMA
                             options=[
                                 {"value": "marstek", "label": "Marstek Venus"},
                                 {"value": "zendure", "label": "Zendure SolarFlow"},
+                                {"value": "zendure_aio", "label": "Zendure AIO 2400 (local MQTT)"},
                                 {"value": "esphome", "label": "Marstek via LilyGo RS485 (ESPHome)"},
                                 {"value": "anker", "label": "Anker SOLIX Solarbank Max AC / 4 E5000 Pro"},
                                 {"value": "sessy", "label": "Sessy"},
@@ -1745,6 +1748,19 @@ class MarstekVenusConfigFlow(LegacyDomainMigrationMixin, ConfigFlow, domain=DOMA
             errors=errors,
             description_placeholders={"battery_num": str(battery_num)},
         )
+
+    async def async_step_battery_connection_zendure_aio(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Configure legacy Zendure AIO 2400 through the HA MQTT broker."""
+        battery_num = self.battery_index + 1
+        current = self.config_entry.data.get("batteries", []) if hasattr(self, "config_entry") else []
+        defaults = current[self.battery_index] if self.battery_index < len(current) else {}
+        if user_input is not None:
+            device_id = user_input["aio_device_id"].strip()
+            if not device_id:
+                return self.async_show_form(step_id="battery_connection_zendure_aio", data_schema=vol.Schema({vol.Required(CONF_NAME): str, vol.Required("aio_device_id"): str}), errors={"base": "invalid_device"})
+            self._current_battery_data.update({CONF_NAME: user_input[CONF_NAME], CONF_HOST: device_id, CONF_PORT: 1883, "brand": "zendure_aio", "aio_device_id": device_id, "aio_product_key": "yWF7hV", "max_charge_power": 0, "device_max_charge_power": 0, "max_discharge_power": 800, "device_max_discharge_power": 800})
+            return await self.async_step_battery_limits()
+        return self.async_show_form(step_id="battery_connection_zendure_aio", data_schema=vol.Schema({vol.Required(CONF_NAME, default=defaults.get(CONF_NAME, f"Zendure AIO 2400 {battery_num}")): str, vol.Required("aio_device_id", default=defaults.get("aio_device_id", "")): str}), description_placeholders={"battery_num": str(battery_num)})
 
     async def async_step_battery_connection_esphome(
         self, user_input: dict[str, Any] | None = None
@@ -2128,7 +2144,9 @@ class MarstekVenusConfigFlow(LegacyDomainMigrationMixin, ConfigFlow, domain=DOMA
         errors: dict[str, str] = {}
         battery_num = self.battery_index + 1
         brand = self._current_battery_data.get("brand", "marstek")
-        if brand == "zendure":
+        if brand == "zendure_aio":
+            max_charge_power, max_discharge_power = 0, 800
+        elif brand == "zendure":
             max_charge_power, max_discharge_power = _zendure_power_limits(
                 self._current_battery_data.get("zendure_model", "2400ac_pro")
             )
@@ -4069,6 +4087,8 @@ class OptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             brand = user_input["brand"]
             self._current_battery_data = {"brand": brand}
+            if brand == "zendure_aio":
+                return await self.async_step_battery_connection_zendure_aio()
             if brand == "zendure":
                 return await self.async_step_battery_connection_zendure()
             if brand == "esphome":
@@ -4092,6 +4112,7 @@ class OptionsFlowHandler(OptionsFlow):
                             options=[
                                 {"value": "marstek", "label": "Marstek Venus"},
                                 {"value": "zendure", "label": "Zendure SolarFlow"},
+                                {"value": "zendure_aio", "label": "Zendure AIO 2400 (local MQTT)"},
                                 {"value": "esphome", "label": "Marstek via LilyGo RS485 (ESPHome)"},
                                 {"value": "anker", "label": "Anker SOLIX Solarbank Max AC / 4 E5000 Pro"},
                                 {"value": "sessy", "label": "Sessy"},
@@ -4311,6 +4332,19 @@ class OptionsFlowHandler(OptionsFlow):
             errors=errors,
             description_placeholders={"battery_num": str(battery_num)},
         )
+
+    async def async_step_battery_connection_zendure_aio(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Configure legacy Zendure AIO 2400 through the HA MQTT broker."""
+        battery_num = self.battery_index + 1
+        current = self.config_entry.data.get("batteries", []) if hasattr(self, "config_entry") else []
+        defaults = current[self.battery_index] if self.battery_index < len(current) else {}
+        if user_input is not None:
+            device_id = user_input["aio_device_id"].strip()
+            if not device_id:
+                return self.async_show_form(step_id="battery_connection_zendure_aio", data_schema=vol.Schema({vol.Required(CONF_NAME): str, vol.Required("aio_device_id"): str}), errors={"base": "invalid_device"})
+            self._current_battery_data.update({CONF_NAME: user_input[CONF_NAME], CONF_HOST: device_id, CONF_PORT: 1883, "brand": "zendure_aio", "aio_device_id": device_id, "aio_product_key": "yWF7hV", "max_charge_power": 0, "device_max_charge_power": 0, "max_discharge_power": 800, "device_max_discharge_power": 800})
+            return await self.async_step_battery_limits()
+        return self.async_show_form(step_id="battery_connection_zendure_aio", data_schema=vol.Schema({vol.Required(CONF_NAME, default=defaults.get(CONF_NAME, f"Zendure AIO 2400 {battery_num}")): str, vol.Required("aio_device_id", default=defaults.get("aio_device_id", "")): str}), description_placeholders={"battery_num": str(battery_num)})
 
     async def async_step_battery_connection_esphome(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Pick the LilyGo/ESPHome device bridging a Marstek battery."""
@@ -4714,7 +4748,9 @@ class OptionsFlowHandler(OptionsFlow):
         try:
             battery_num = self.battery_index + 1
             brand = self._current_battery_data.get("brand", "marstek")
-            if brand == "zendure":
+            if brand == "zendure_aio":
+                max_charge_power, max_discharge_power = 0, 800
+            elif brand == "zendure":
                 max_charge_power, max_discharge_power = _zendure_power_limits(
                     self._current_battery_data.get("zendure_model", "2400ac_pro")
                 )

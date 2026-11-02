@@ -23,6 +23,7 @@ from ..const import (
 from ..drivers.esphome import EsphomeEntityDriver
 from ..drivers.marstek import MarstekModbusDriver
 from ..drivers.zendure import ZendureLocalDriver, ZENDURE_MODEL_2400AC_PRO
+from ..drivers.zendure_aio import ZendureAioDriver
 from ..drivers.anker import AnkerModbusDriver
 from ..drivers.sessy import SessyLocalDriver
 from ..drivers.hoymiles import HoymilesMqttDriver
@@ -335,7 +336,8 @@ class MarstekVenusDataUpdateCoordinator(DataUpdateCoordinator):
                  ems_version: object = None,
                  mac: str | None = None,
                  backup_discharge_store: BackupDischargeEnergyStore | None = None,
-                 backup_discharge_store_key: str | None = None) -> None:
+                 backup_discharge_store_key: str | None = None,
+                 aio_product_key: str = "yWF7hV", aio_device_id: str | None = None) -> None:
         """Initialize the data update coordinator."""
         super().__init__(
             hass,
@@ -364,7 +366,9 @@ class MarstekVenusDataUpdateCoordinator(DataUpdateCoordinator):
         self.brand = brand
         self.ems_version = ems_version
         self.zendure_model = zendure_model
-        if self.brand in ("zendure", "anker", "hoymiles", "huawei"):
+        self.aio_product_key = aio_product_key
+        self.aio_device_id = aio_device_id or host
+        if self.brand in ("zendure", "zendure_aio", "anker", "hoymiles", "huawei"):
             full_charge_voltage_taper_enabled = False
 
         # Validate and store battery version
@@ -492,7 +496,10 @@ class MarstekVenusDataUpdateCoordinator(DataUpdateCoordinator):
         # packet correction; the coordinator and platform setups read the
         # per-platform definition lists back from it (see the passthrough
         # properties below) instead of branching on the version string.
-        if self.brand == "zendure":
+        if self.brand == "zendure_aio":
+            self.driver = ZendureAioDriver(hass, self.aio_product_key, self.aio_device_id,
+                max_charge_power_w=0, max_discharge_power_w=initial_discharge_limit or 800)
+        elif self.brand == "zendure":
             # Zendure's charge/discharge caps are read-only device traits, not
             # writable registers. The capability must stay the hardware ceiling
             # (driver default) — feeding the user-tunable max_charge_power here
@@ -883,7 +890,7 @@ class MarstekVenusDataUpdateCoordinator(DataUpdateCoordinator):
             "identifiers": {(DOMAIN, f"{self.device_key}")},
             "name": self.name,
             "manufacturer": (
-                "Zendure" if self.brand == "zendure"
+                "Zendure" if self.brand in ("zendure", "zendure_aio")
                 else "Anker" if self.brand == "anker"
                 else "Sessy" if self.brand == "sessy"
                 else "Hoymiles" if self.brand == "hoymiles"
@@ -891,7 +898,8 @@ class MarstekVenusDataUpdateCoordinator(DataUpdateCoordinator):
                 else "Marstek"
             ),
             "model": self.driver.model_label or (
-                "Zendure" if self.brand == "zendure"
+                "AIO 2400" if self.brand == "zendure_aio"
+                else "Zendure" if self.brand == "zendure"
                 else "Solarbank Max AC" if self.brand == "anker"
                 else "Sessy" if self.brand == "sessy"
                 else "MS-A2" if self.brand == "hoymiles"
